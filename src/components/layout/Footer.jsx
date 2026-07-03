@@ -1,117 +1,104 @@
-import { useState, useEffect } from "react";
-import { Github, Linkedin, Mail, Heart } from "lucide-react";
-import { FaReddit, FaDiscord, FaWhatsapp ,FaLinkedin} from "react-icons/fa";
-import {
-  SiX,
-  SiNpm,
-  SiGithub,
-  SiReddit,
-  SiDiscord,
-  SiWhatsapp,
-  SiGmail,
-} from "react-icons/si";
-export const SOCIAL_LINKS = [
-  {
-    href: "https://x.com/jpranays",
-    icon: SiX,
-    label: "Twitter/X",
-    fillColor: "#000000",
-  },
-  {
-    href: "https://www.npmjs.com/~jpranays",
-    icon: SiNpm,
-    label: "NPM",
-    fillColor: "#CB3837",
-  },
-  {
-    href: "https://github.com/jpranays",
-    icon: SiGithub,
-    label: "GitHub",
-    fillColor: "#181717",
-  },
-  {
-    href: "https://www.linkedin.com/in/jpranays",
-    icon: FaLinkedin,
-    label: "LinkedIn",
-    fillColor: "#0A66C2",
-  },
-  {
-    href: "https://www.reddit.com/user/jpranays/",
-    icon: SiReddit,
-    label: "Reddit",
-    fillColor: "#FF4500",
-  },
-  {
-    href: "https://discord.com/users/jpranays",
-    icon: SiDiscord,
-    label: "Discord",
-    fillColor: "#5865F2",
-  },
-  {
-    href: "https://wa.me/918888399676",
-    icon: SiWhatsapp,
-    label: "WhatsApp",
-    fillColor: "#25D366",
-  },
-  {
-    href: "mailto:pranay1315@gmail.com",
-    icon: SiGmail,
-    label: "Email",
-    fillColor: "#EA4335",
-  },
+import { memo } from "react";
+import { Kbd } from "../ui/Kbd";
+
+/**
+ * Footer — one hairline-topped band (DESIGN-V2 Part B §SECTIONS footer).
+ *
+ * Three zones on md+ (stacked on mobile):
+ *   left   — '© <year> Pranay Jadhav · Pune, IN' 13px Geist SANS (mono is
+ *            reserved for code/paths per the usage contract)
+ *   center — the social long-tail as labeled 13px text links, wrapped row,
+ *            40px tap targets (the 8-icon row exiled here from the hero)
+ *   right  — 'view source ↗' (replaces the deleted self-referential project
+ *            card) + mono 12px 'built with …' + pointer-aware shortcuts hint
+ *
+ * Bottom padding clears the fixed status bar + safe-area. Plus the
+ * aria-hidden Konami tease (A7). No sitemap columns, no newsletter,
+ * no second nav.
+ */
+
+const SOURCE_URL = "https://github.com/jpranays/pranay-portfolio";
+
+/** Social long-tail — labeled text links (order per §SECTIONS footer). */
+const SOCIAL_LINKS = [
+  { label: "X", href: "https://x.com/jpranays" },
+  { label: "Reddit", href: "https://www.reddit.com/user/jpranays/" },
+  { label: "Discord", href: "https://discord.com/users/jpranays" },
+  { label: "WhatsApp", href: "https://wa.me/918888399676" },
+  { label: "Gmail", href: "mailto:pranay1315@gmail.com" },
+  { label: "npm", href: "https://www.npmjs.com/~jpranays" },
+  { label: "GitHub", href: "https://github.com/jpranays" },
+  { label: "LinkedIn", href: "https://www.linkedin.com/in/jpranays" },
 ];
-const TIME_FMT = { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: true };
 
-function PuneClock() {
-  const [time, setTime] = useState(() => new Date().toLocaleTimeString("en-IN", TIME_FMT));
-
-  useEffect(() => {
-    const id = setInterval(() => setTime(new Date().toLocaleTimeString("en-IN", TIME_FMT)), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <p className="text-xs font-mono text-slate-400" aria-live="off">
-      It&apos;s {time} in Pune, India 🇮🇳
-    </p>
-  );
-}
-
-export function Footer() {
+export const Footer = memo(function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-slate-200 dark:border-white/[0.05]" role="contentinfo">
-      <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col items-center gap-4">
-        <PuneClock />
-
-        <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-slate-500 font-mono">
-            <span className="ml-3">
-              © {year} Pranay Jadhav. Built with{" "}
-              <Heart className="w-3 h-3 inline text-orange-500" aria-label="love" fill="currentColor" style={{transition:"all 0.3s linear"}}/>
-            </span>
+    <footer data-chrome="footer" role="contentinfo" className="border-t border-hairline">
+      <div
+        className="mx-auto max-w-[1120px] px-5 pt-10 sm:px-8"
+        /* clears the 36–40px fixed status bar + notch safe-area */
+        style={{ paddingBottom: "calc(64px + env(safe-area-inset-bottom))" }}
+      >
+        <div className="flex flex-col gap-8 md:grid md:grid-cols-[auto_1fr_auto] md:items-start md:gap-10">
+          {/* ── Left ── */}
+          <p className="flex min-h-10 items-center text-[13px] text-secondary">
+            © {year} Pranay Jadhav · Pune, IN
           </p>
 
+          {/* ── Center: social long-tail ── */}
           <nav aria-label="Social links">
-            <ul className="flex items-center gap-4" role="list">
-              {SOCIAL_LINKS.map(({ href, icon: Icon, label,fillColor }) => (
+            <ul role="list" className="-mx-2 flex flex-wrap items-center md:justify-center">
+              {SOCIAL_LINKS.map(({ label, href }) => (
                 <li key={label}>
                   <a
                     href={href}
-                    target={href.startsWith("mailto") ? undefined : "_blank"}
+                    target={href.startsWith("mailto:") ? undefined : "_blank"}
                     rel="noopener noreferrer"
-                    aria-label={label}
-                    className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors duration-200"
+                    className="inline-flex min-h-10 items-center px-2 text-[13px] text-secondary transition-colors duration-fast hover:text-primary hover:underline"
                   >
-                    <Icon className="w-4 h-4" aria-hidden="true" />
+                    {label}
                   </a>
                 </li>
               ))}
             </ul>
           </nav>
+
+          {/* ── Right ── */}
+          <div className="flex flex-col items-start gap-1 md:items-end">
+            <a
+              href={SOURCE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-10 items-center text-[13px] text-secondary transition-colors duration-fast hover:text-primary hover:underline"
+            >
+              view source ↗
+            </a>
+            <p className="font-mono text-xs text-secondary">
+              built with React · Vite · Tailwind
+            </p>
+            <p className="pt-1 text-[13px] text-tertiary">
+              <span className="inline-flex items-center gap-1 [@media(pointer:coarse)]:hidden">
+                press <Kbd>?</Kbd> for shortcuts
+              </span>
+              <span className="hidden [@media(pointer:coarse)]:inline">
+                tap ⌘K above to jump anywhere
+              </span>
+            </p>
+          </div>
         </div>
+
+        {/* ── Konami tease — aria-hidden whisper (A7) ── */}
+        <p
+          aria-hidden="true"
+          className="mt-10 select-none text-center font-mono text-xs text-tertiary"
+        >
+          ↑ ↑ ↓ ↓ … you know the rest
+        </p>
       </div>
     </footer>
   );
-}
+});
+
+export default Footer;

@@ -2,324 +2,397 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─────────────────────────────────────────────
-   DESIGN TOKENS  —  all semantic colors live here.
-   Components never hard-code values; they reference
-   these vars or use bg-base / bg-card / bg-surface
-   (which Tailwind maps to the same vars).
-   ───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+   OPERATOR — design tokens (DESIGN-V2 Part B §PALETTE / §ACCENT SYSTEM)
+
+   Neutral scale + accent matrix live here as CSS variables. Components
+   reference ONLY these tokens (via Tailwind semantic colors or var()) —
+   no color literals, no runtime style injection.
+
+   Accent architecture (A5):
+     html[data-accent="signal|ion|photon|ember|pulse|mono"] × (:root/.dark)
+     defines --ap-vivid / --ap-text / --ap-ring / --ap-on-accent.
+     --ap-dim and the 5-step calendar ramp are DERIVED once via color-mix —
+     never hand-declared per accent.
+   ═══════════════════════════════════════════════════════════════════ */
 
 @layer base {
-  /* LIGHT MODE (default) */
+  /* ── LIGHT (default) — cool paper-free neutral ──────────────────── */
   :root {
     color-scheme: light;
 
-    --color-base: #f8fafc;
-    --color-surface: #f1f5f9;
-    --color-card: #ffffff;
-    --color-card-hover: #f8fafc;
+    /* Neutral scale */
+    --bg-base: #fafafb;
+    --surface-0: #ffffff; /* titlebar / statusbar (chrome applies 92% + saturate) */
+    --surface-1: #ffffff; /* panels */
+    --surface-2: #f4f4f5; /* hover / inset rows / code blocks */
+    --border-hairline: #e4e4e7;
+    --border-strong: #d4d4d8;
+    --text-primary: #18181b;   /* 16.4:1 */
+    --text-secondary: #52525b; /* 7.6:1 */
+    --text-tertiary: #6e6e76;  /* 4.7:1 — floor tier, ≥13px only */
 
-    --color-border: rgba(0, 0, 0, 0.07);
-    --color-border-hover: rgba(249, 115, 22, 0.25);
-    --color-border-strong: rgba(0, 0, 0, 0.12);
+    /* Semantic — fixed, separate from the accent */
+    --success: #059669;
+    --danger: #dc2626;
 
-    --color-text-primary: #0f172a;
-    --color-text-secondary: #475569;
-    --color-text-muted: #94a3b8;
+    /* Motion tokens (A6) */
+    --dur-fast: 120ms;
+    --dur-base: 180ms;
+    --dur-panel: 240ms;
+    --ease-panel: cubic-bezier(0.32, 0.72, 0, 1);
 
-    --color-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
-    --color-shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(249, 115, 22, 0.15);
+    /* Static per-accent swatch colors (picker UI previews) */
+    --swatch-signal: #047857;
+    --swatch-ion: #0969da;
+    --swatch-photon: #6d28d9;
+    --swatch-ember: #a16207;
+    --swatch-pulse: #be185d;
+    --swatch-mono: var(--text-primary);
 
-    --scrollbar-thumb: rgba(203, 213, 225, 0.8);
-    --scrollbar-track: #f1f5f9;
+    /* Default accent = signal (light text-tier) */
+    --ap-vivid: #047857;
+    --ap-text: #047857;
+    --ap-ring: #047857;
+    --ap-on-accent: #ffffff;
 
-    --dot-color: rgba(0, 0, 0, 0.12);
+    /* Derived accent tokens — defined ONCE, recompute per accent/theme */
+    --ap-dim: color-mix(in oklab, var(--ap-vivid) 12%, transparent);
+    --ap-cal-1: color-mix(in oklab, var(--ap-vivid) 10%, var(--surface-2));
+    --ap-cal-2: color-mix(in oklab, var(--ap-vivid) 25%, var(--surface-2));
+    --ap-cal-3: color-mix(in oklab, var(--ap-vivid) 45%, var(--surface-2));
+    --ap-cal-4: color-mix(in oklab, var(--ap-vivid) 70%, var(--surface-2));
+    --ap-cal-5: color-mix(in oklab, var(--ap-vivid) 100%, var(--surface-2));
   }
 
-  /* DARK MODE */
-  .dark {
+  /* ── DARK — pure neutral graphite, zero blue cast ───────────────── */
+  :root.dark {
     color-scheme: dark;
 
-    --color-base: #060610;
-    --color-surface: #0d1117;
-    --color-card: #11161f;
-    --color-card-hover: #161c28;
+    --bg-base: #0c0c0d;
+    --surface-0: #101012;
+    --surface-1: #131316;
+    --surface-2: #1a1a1f;
+    --border-hairline: #26262b;
+    --border-strong: #35353b;
+    --text-primary: #fafafa;   /* 17.9:1 */
+    --text-secondary: #a1a1aa; /* 7.9:1 on surface-1 */
+    --text-tertiary: #7e7e89;  /* 4.9:1 on surface-1 — floor tier, ≥13px only */
 
-    --color-border: rgba(255, 255, 255, 0.07);
-    --color-border-hover: rgba(249, 115, 22, 0.3);
-    --color-border-strong: rgba(255, 255, 255, 0.12);
+    /* Swatch previews use the vivid tier on dark */
+    --swatch-signal: #3ecf8e;
+    --swatch-ion: #58a6ff;
+    --swatch-photon: #a78bfa;
+    --swatch-ember: #fbbf24;
+    --swatch-pulse: #f472b6;
+    --swatch-mono: var(--text-primary);
 
-    --color-text-primary: #f1f5f9;
-    --color-text-secondary: #94a3b8;
-    --color-text-muted: #64748b;
-
-    --color-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.3);
-    --color-shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(249, 115, 22, 0.12);
-
-    --scrollbar-thumb: rgba(249, 115, 22, 0.4);
-    --scrollbar-track: #0d1117;
-
-    --dot-color: rgba(255, 255, 255, 0.8);
+    /* Default accent = signal (dark vivid tier) */
+    --ap-vivid: #3ecf8e;
+    --ap-text: #3ecf8e;
+    --ap-ring: #3ecf8e;
+    --ap-on-accent: #0c0c0d;
   }
 
+  /* ── Accent matrix: light (text tier) ───────────────────────────── */
+  :root[data-accent="signal"] {
+    --ap-vivid: #047857;
+    --ap-text: #047857;
+    --ap-ring: #047857;
+    --ap-on-accent: #ffffff;
+  }
+  :root[data-accent="ion"] {
+    --ap-vivid: #0969da;
+    --ap-text: #0969da;
+    --ap-ring: #0969da;
+    --ap-on-accent: #ffffff;
+  }
+  :root[data-accent="photon"] {
+    --ap-vivid: #6d28d9;
+    --ap-text: #6d28d9;
+    --ap-ring: #6d28d9;
+    --ap-on-accent: #ffffff;
+  }
+  :root[data-accent="ember"] {
+    --ap-vivid: #a16207;
+    --ap-text: #a16207;
+    --ap-ring: #a16207;
+    --ap-on-accent: #ffffff;
+  }
+  :root[data-accent="pulse"] {
+    --ap-vivid: #be185d;
+    --ap-text: #be185d;
+    --ap-ring: #be185d;
+    --ap-on-accent: #ffffff;
+  }
+
+  /* ── Accent matrix: dark (vivid tier) ───────────────────────────── */
+  :root.dark[data-accent="signal"] {
+    --ap-vivid: #3ecf8e;
+    --ap-text: #3ecf8e;
+    --ap-ring: #3ecf8e;
+    --ap-on-accent: #0c0c0d;
+  }
+  :root.dark[data-accent="ion"] {
+    --ap-vivid: #58a6ff;
+    --ap-text: #58a6ff;
+    --ap-ring: #58a6ff;
+    --ap-on-accent: #0c0c0d;
+  }
+  :root.dark[data-accent="photon"] {
+    --ap-vivid: #a78bfa;
+    --ap-text: #a78bfa;
+    --ap-ring: #a78bfa;
+    --ap-on-accent: #0c0c0d;
+  }
+  :root.dark[data-accent="ember"] {
+    --ap-vivid: #fbbf24;
+    --ap-text: #fbbf24;
+    --ap-ring: #fbbf24;
+    --ap-on-accent: #0c0c0d;
+  }
+  :root.dark[data-accent="pulse"] {
+    --ap-vivid: #f472b6;
+    --ap-text: #f472b6;
+    --ap-ring: #f472b6;
+    --ap-on-accent: #0c0c0d;
+  }
+
+  /* ── MONO — achromatic stealth accent (theme-agnostic via vars).
+       Interactive states must also carry underline/weight/border —
+       non-color affordance test case. Declared after both theme blocks
+       so it wins at equal specificity. ─────────────────────────────── */
+  :root[data-accent="mono"],
+  :root.dark[data-accent="mono"] {
+    --ap-vivid: var(--text-primary);
+    --ap-text: var(--text-primary);
+    --ap-ring: var(--text-primary);
+    --ap-on-accent: var(--bg-base);
+  }
+
+  /* ── Base styles ────────────────────────────────────────────────── */
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: "Geist", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
-  /* Hide default cursor on fine-pointer devices — replaced by CustomCursor */
-  /* @media (pointer: fine) {
-    html { cursor: none; }
-  } */
-
-  body {
-    background-color: var(--color-base);
-    color: var(--color-text-primary);
-    font-family: "Inter", system-ui, sans-serif;
-    overflow-x: hidden;
-    transition: background-color 0.3s ease, color 0.3s ease;
+  /* Anchored sections clear the 48px fixed titlebar */
+  [id] {
+    scroll-margin-top: 64px;
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
-  ::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    border-radius: 999px;
-  }
-
-  /* Selection */
   ::selection {
-    background: rgba(249, 115, 22, 0.25);
+    background-color: color-mix(in oklab, var(--ap-vivid) 25%, transparent);
     color: inherit;
   }
 
-  /* Focus outline */
   :focus-visible {
-    outline: 2px solid rgba(249, 115, 22, 0.7);
-    outline-offset: 3px;
-    border-radius: 4px;
+    outline: 2px solid var(--ap-ring);
+    outline-offset: 2px;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    letter-spacing: -0.02em;
-    line-height: 1.2;
+  /* Thin scrollbar (WebKit) */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
   }
 }
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════
    COMPONENT CLASSES
-   Use CSS vars so they auto-switch with theme.
-   ───────────────────────────────────────────── */
+   ═══════════════════════════════════════════════════════════════════ */
 @layer components {
-  .section-container {
-    @apply max-w-6xl mx-auto px-6 py-24 lg:py-32;
+  /* kbd chip — 12px mono at AA contrast (secondary on surface-2 ≥ 7:1) */
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    background-color: var(--surface-2);
+    color: var(--text-secondary);
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
   }
 
-  .section-label {
-    @apply inline-flex items-center gap-2 text-xs font-mono font-medium
-           tracking-widest uppercase text-orange-500 mb-6
-           px-3 py-1.5 rounded-full;
-    background-color: rgba(249, 115, 22, 0.08);
-    border: 1px solid rgba(249, 115, 22, 0.15);
+  /* Eyebrow — mono ~/path above section heads */
+  .eyebrow {
+    font-family: "Geist Mono", ui-monospace, monospace;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary);
   }
 
-  .section-title {
-    @apply text-3xl sm:text-4xl font-bold mb-4;
-    color: var(--color-text-primary);
+  /* App chrome (titlebar / statusbar): surface-0 at 92% light / 88% dark
+     + saturate(1.4) backdrop — elevation by border, not shadow */
+  .app-chrome {
+    background-color: color-mix(in srgb, var(--surface-0) 92%, transparent);
+    -webkit-backdrop-filter: saturate(1.4);
+    backdrop-filter: saturate(1.4);
+  }
+  .dark .app-chrome {
+    background-color: color-mix(in srgb, var(--surface-0) 88%, transparent);
   }
 
-  .section-subtitle {
-    @apply text-lg max-w-2xl;
-    color: var(--color-text-secondary);
-  }
-
-  /* Glass card — fully theme-aware via CSS vars */
-  .glass-card {
-    background-color: var(--color-card);
-    border: 1px solid var(--color-border);
-    @apply rounded-2xl;
-    box-shadow: var(--color-shadow-card);
-    transition:
-      border-color 0.3s ease,
-      box-shadow 0.3s ease,
-      transform 0.2s ease,
-      background-color 0.3s ease;
-  }
-
-  .glass-card:hover {
-    border-color: var(--color-border-hover);
-    box-shadow: var(--color-shadow-card-hover);
-  }
-
-  /* Gradient text — orange, same in both themes */
-  .gradient-text {
-    @apply bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent;
-  }
-
-  .gradient-text-cyan {
-    @apply bg-gradient-to-r from-cyan-400 to-teal-300 bg-clip-text text-transparent;
-  }
-
-  /* Glow dot */
-  .glow-dot {
-    @apply inline-block w-2 h-2 rounded-full bg-orange-500;
-    box-shadow: 0 0 8px rgba(249, 115, 22, 0.8);
-  }
-
-  /* Primary button */
-  .btn-primary {
-    @apply inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm
-           bg-orange-500 text-white hover:bg-orange-400 active:scale-95
-           transition-all duration-200;
-    box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
-    &:hover { box-shadow: 0 0 28px rgba(249, 115, 22, 0.45); }
-  }
-
-  /* Secondary button — theme-aware */
-  .btn-secondary {
-    @apply inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm
-           active:scale-95 transition-all duration-200;
-    background-color: var(--color-card);
-    color: var(--color-text-secondary);
-    border: 1px solid var(--color-border-strong);
-    &:hover {
-      border-color: var(--color-border-hover);
-      color: var(--color-text-primary);
-    }
-  }
-
-  /* Tech badge — theme-aware */
-  .tech-badge {
-    @apply inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono font-medium
-           transition-colors duration-200;
-    background-color: var(--color-surface);
-    color: var(--color-text-secondary);
-    border: 1px solid var(--color-border);
-    &:hover {
-      @apply text-yellow-500;
-      background-color: rgba(var(--ap-500-rgb), 0.10);
-      color: var(--ap-500) !important;
-    }
-  }
-}
-
-.custom-link{
-  &:hover{
-      color: var(--ap-500) !important;
-  }
-}
-.custom-border-color{
-  &:hover{
-      border-color: var(--ap-500) !important;
-}
-}
-.no-focus:focus {
-  outline: none !important;
-}
-
-/* ─────────────────────────────────────────────
-   UTILITIES
-   ───────────────────────────────────────────── */
-@layer utilities {
-  /* Theme-aware gradient border */
-  .gradient-border {
+  /* CRT scanline texture — operator mode + terminal only. Subtle: ~6%. */
+  .scanlines {
     position: relative;
   }
-  .gradient-border::before {
+  .scanlines::after {
     content: "";
     position: absolute;
     inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(
-      135deg,
-      rgba(249, 115, 22, 0.4),
-      rgba(34, 211, 238, 0.15),
-      rgba(249, 115, 22, 0.1)
-    );
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+    z-index: 10;
     pointer-events: none;
+    border-radius: inherit;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--text-primary) 0,
+      var(--text-primary) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    opacity: 0.06;
   }
 
-  /* Hide scrollbar */
-  .scrollbar-none {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    &::-webkit-scrollbar { display: none; }
+  /* Cursor-tracked border glow (Linear-style), used by Panel via
+     useCursorGlow. The host sets --glow-x/--glow-y (px, relative to the
+     panel) and data-glow="on" while hovered. The gradient dot moves via
+     transform (composited); the mask clips it to the 1px border ring.
+     pointer:fine only; reduced motion hides it entirely. */
+  .panel-glow {
+    display: none;
   }
-
-  /* Transition helper for theme switching */
-  .theme-transition {
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  @media (pointer: fine) {
+    .panel-glow {
+      display: block;
+      position: absolute;
+      inset: -1px;
+      padding: 1px;
+      border-radius: inherit;
+      overflow: hidden;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--dur-base) ease-out;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      mask-composite: exclude;
+    }
+    .panel-glow::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 320px;
+      height: 320px;
+      margin: -160px 0 0 -160px;
+      border-radius: 9999px;
+      background: radial-gradient(
+        closest-side,
+        color-mix(in oklab, var(--ap-vivid) 60%, transparent),
+        transparent
+      );
+      transform: translate3d(var(--glow-x, -9999px), var(--glow-y, -9999px), 0);
+      will-change: transform;
+    }
+    [data-glow="on"] > .panel-glow {
+      opacity: 1;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .panel-glow {
+        display: none;
+      }
+    }
   }
 }
 
-/* ─────────────────────────────────────────────
-   PRINT STYLES  —  clean resume-like output
-   ───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════════════ */
+@layer utilities {
+  /* Data-carrying numerals — always tabular */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ── Accent pick: ONE 400ms variable transition. useAccent toggles this
+     class on <html> for 400ms per pick; the reduced-motion kill-switch
+     below overrides it to instant. ─────────────────────────────────── */
+html.accent-transition,
+html.accent-transition *,
+html.accent-transition *::before,
+html.accent-transition *::after {
+  transition:
+    color 400ms ease,
+    background-color 400ms ease,
+    border-color 400ms ease,
+    outline-color 400ms ease,
+    text-decoration-color 400ms ease,
+    fill 400ms ease,
+    stroke 400ms ease !important;
+}
+
+/* ── Print: hide fixed chrome, force light surfaces ───────────────── */
 @media print {
-  /* Hide interactive chrome */
-  header, footer,
-  [data-print-hide],
-  .fixed, .sticky {
+  .fixed,
+  .sticky,
+  [data-print-hide] {
     display: none !important;
   }
-
-  /* Force light background */
-  html, body {
+  html,
+  body {
     background: #fff !important;
-    color: #0f172a !important;
-    font-size: 11pt;
-    /* cursor: auto !important; */
+    color: #18181b !important;
   }
+}
 
-  /* Sections flow naturally */
-  section {
-    page-break-inside: avoid;
-    break-inside: avoid;
+/* ═══════════════════════════════════════════════════════════════════
+   REDUCED MOTION — global kill-switch (A6). Declared LAST so it wins
+   the cascade over everything above, including .accent-transition.
+   useMotionPreference handles JS-driven motion; this is the safety net.
+   ═══════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
-
-  /* Remove card shadows / blur */
-  .glass-card {
-    background: #fff !important;
-    box-shadow: none !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 8px !important;
-  }
-
-  /* Keep orange brand colour */
-  .text-orange-400, .text-orange-500 { color: #f97316 !important; }
-  .bg-orange-500 { background-color: #f97316 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-  /* Gradient text fallback */
-  .gradient-text {
-    background: none !important;
-    -webkit-text-fill-color: #f97316 !important;
-  }
-
-  /* Show full URLs next to links */
-  a[href^="http"]::after {
-    content: " (" attr(href) ")";
-    font-size: 8pt;
-    color: #64748b;
-  }
-  a[href^="mailto"]::after {
-    content: " (" attr(href) ")";
-    font-size: 8pt;
-    color: #64748b;
-  }
-
-  /* Ensure canvas/SVG effects don't print */
-  canvas { display: none !important; }
-
-  /* Page margins */
-  @page {
-    margin: 1.5cm 2cm;
+  html {
+    scroll-behavior: auto !important;
   }
 }

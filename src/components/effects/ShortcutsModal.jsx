@@ -1,89 +1,149 @@
-import { useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { memo, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
+import { useOverlay } from "../../hooks/useOverlay";
+import { useMotionPreference } from "../../hooks/useMotionPreference";
+import { Panel } from "../ui/Panel";
+import { Kbd } from "../ui/Kbd";
 
-const SHORTCUTS = [
-  { keys: ["?"],        desc: "Show / hide this overlay" },
-  { keys: ["⌘", "K"],   desc: "Open command palette" },
-  { keys: ["↑↑↓↓←→←→BA"], desc: "Unlock easter egg 🎮", mono: true },
+/**
+ * ShortcutsModal — the cheat sheet (DESIGN-V2 Part B §EXTRAS (3), A4).
+ *
+ * Opened by the '?' key, the status-bar '?' button, or the palette entry.
+ * A Panel of grouped rows with real 12px Kbd chips at AA; useOverlay handles
+ * focus trap/restore, Escape, scroll lock, inert siblings. '?' also closes
+ * it while open. The konami row is an aria-hidden whisper — '…you know the
+ * rest' — matching the footer tease.
+ *
+ * Contract: `ShortcutsModal({ open, onClose })`
+ */
+
+const GROUPS = [
+  {
+    heading: "global",
+    rows: [
+      { keys: ["⌘", "K"], desc: "Command palette — search & jump" },
+      { keys: ["`"], desc: "Terminal" },
+      { keys: ["?"], desc: "This cheat sheet" },
+    ],
+  },
+  {
+    heading: "appearance",
+    rows: [
+      { keys: ["t"], desc: "Toggle theme" },
+      { keys: ["1–6"], desc: "Pick an accent — inside the swatch popover" },
+    ],
+  },
+  {
+    heading: "classified",
+    hidden: true,
+    rows: [{ keys: ["↑", "↑", "↓", "↓"], desc: "…you know the rest" }],
+  },
 ];
 
-export function ShortcutsModal({ open, onClose }) {
+function ShortcutsModalImpl({ open, onClose }) {
+  const reduced = useMotionPreference();
+  const { containerRef, overlayProps } = useOverlay({ open, onClose });
+
+  /* '?' toggles the sheet shut while open (Escape is handled by useOverlay).
+     Capture phase + stopPropagation so an App-level '?' opener doesn't
+     immediately re-open it. */
   useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      if (e.key === "Escape" || e.key === "?") onClose();
+    if (!open) return undefined;
+    const onKey = (event) => {
+      if (event.key === "?" && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose?.();
+      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [open, onClose]);
+
+  const dur = reduced ? 0 : 0.16;
 
   return (
     <AnimatePresence>
       {open && (
         <motion.div
-          key="shortcuts-overlay"
+          key="shortcuts-modal"
+          className="fixed inset-0 z-[80] grid place-items-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-[9990] flex items-center justify-center p-4"
-          onClick={onClose}
+          transition={{ duration: dur, ease: "easeOut" }}
         >
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" aria-hidden="true" />
+          {/* Scrim — click to close */}
+          <div
+            className="absolute inset-0 bg-black/40 dark:bg-black/60"
+            aria-hidden="true"
+            onClick={onClose}
+          />
 
+          {/* Sheet — 160ms scale 0.98→1, overlay radius + the one allowed shadow */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.92, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: 12 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="relative w-full max-w-sm rounded-2xl border border-slate-200 dark:border-white/[0.09]
-                       bg-white dark:bg-[#0d1117] shadow-2xl p-6"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
+            ref={containerRef}
+            {...overlayProps}
             aria-label="Keyboard shortcuts"
+            initial={{ scale: 0.98 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0.98 }}
+            transition={{ duration: dur, ease: [0.32, 0.72, 0, 1] }}
+            className="relative w-full max-w-md"
           >
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                Keyboard shortcuts
-              </h2>
-              <button
-                onClick={onClose}
-                aria-label="Close shortcuts"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200
-                           hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            <Panel
+              size="lg"
+              header="shortcuts --list"
+              headerRight={
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close shortcuts"
+                  className="-my-2 -mr-2 flex h-10 w-10 items-center justify-center rounded-panel text-secondary transition-colors duration-fast hover:bg-surface-2 hover:text-primary"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              }
+              className="rounded-overlay shadow-[0_16px_48px_rgb(0_0_0/0.16)] dark:shadow-[0_16px_48px_rgb(0_0_0/0.5)]"
+            >
+              <div className="space-y-5">
+                {GROUPS.map((group) => (
+                  <section key={group.heading} aria-hidden={group.hidden || undefined}>
+                    <h3 className="font-mono text-xs font-medium tracking-[0.02em] text-secondary">
+                      {group.heading}
+                    </h3>
+                    <ul className="mt-1 divide-y divide-hairline">
+                      {group.rows.map((row) => (
+                        <li
+                          key={row.desc}
+                          className="flex min-h-[40px] items-center justify-between gap-4 py-2"
+                        >
+                          <span className="text-sm text-secondary">{row.desc}</span>
+                          <span className="flex shrink-0 items-center gap-1">
+                            {row.keys.map((k, i) => (
+                              <Kbd key={`${k}-${i}`}>{k}</Kbd>
+                            ))}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
 
-            <ul className="space-y-3">
-              {SHORTCUTS.map(({ keys, desc, mono }) => (
-                <li key={desc} className="flex items-center justify-between gap-4">
-                  <span className="text-sm text-slate-500 dark:text-slate-400">{desc}</span>
-                  <span className="flex items-center gap-1 flex-shrink-0">
-                    {keys.map((k) => (
-                      <kbd
-                        key={k}
-                        className={`px-2 py-0.5 rounded-md text-xs border border-slate-200 dark:border-white/[0.1]
-                                   bg-slate-100 dark:bg-white/[0.05] text-slate-600 dark:text-slate-300
-                                   ${mono ? "font-mono text-[10px]" : ""}`}
-                      >
-                        {k}
-                      </kbd>
-                    ))}
-                  </span>
-                </li>
-              ))}
-            </ul>
-
-            <p className="mt-5 text-[11px] font-mono text-slate-400 dark:text-slate-600 text-center">
-              press <kbd className="px-1.5 py-px rounded text-[10px] border border-slate-200 dark:border-white/[0.08] bg-slate-100 dark:bg-white/[0.04]">?</kbd> or <kbd className="px-1.5 py-px rounded text-[10px] border border-slate-200 dark:border-white/[0.08] bg-slate-100 dark:bg-white/[0.04]">esc</kbd> to dismiss
-            </p>
+              <p className="mt-5 flex items-center justify-center gap-1.5 border-t border-hairline pt-4 font-mono text-xs text-secondary">
+                press <Kbd>?</Kbd> or <Kbd>esc</Kbd> to dismiss
+              </p>
+            </Panel>
           </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
   );
 }
+
+const ShortcutsModal = memo(ShortcutsModalImpl);
+
+export { ShortcutsModal };
+export default ShortcutsModal;

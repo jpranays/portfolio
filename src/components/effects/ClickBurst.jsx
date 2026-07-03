@@ -1,74 +1,94 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { useReducedMotion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { useMotionPreference } from "../../hooks/useMotionPreference";
 
-const COLORS = ["#f97316", "#fb923c", "#fbbf24", "#34d399", "#60a5fa", "#a78bfa", "#f472b6"];
-const PARTICLE_COUNT = 8;
+/**
+ * ClickBurst — 24px square crosshair ping (DESIGN-V2 §EXTRAS 11, A7).
+ *
+ * A 1px accent square expands 0→24px with a faint center crosshair over
+ * ~280ms — an instrument "ping", not confetti. Fires ONLY on primary
+ * actions: elements matching [data-ping] or .btn-accent (via closest()),
+ * never on every click. Keyboard-activated clicks (event.detail === 0)
+ * ping at the element's center. Fully disabled under reduced motion.
+ */
 
-function Burst({ id, x, y, onDone }) {
-  const particles = Array.from({ length: PARTICLE_COUNT }, (_, i) => {
-    const angle = (i / PARTICLE_COUNT) * 360;
-    const dist = 40 + Math.random() * 30;
-    const rad = (angle * Math.PI) / 180;
-    const tx = Math.cos(rad) * dist;
-    const ty = Math.sin(rad) * dist;
-    const color = COLORS[i % COLORS.length];
-    return { tx, ty, color, size: 4 + Math.random() * 4 };
-  });
+const PING_SELECTOR = "[data-ping], .btn-accent";
+const PING_SIZE = 24; /* px — final square edge */
+const PING_MS = 280; /* within the 240–300ms contract */
+const MAX_CONCURRENT = 4;
 
-  return (
-    <div
-      className="fixed pointer-events-none"
-      style={{ left: x, top: y, transform: "translate(-50%, -50%)", zIndex: 9999 }}
-      aria-hidden="true"
-    >
-      {particles.map((p, i) => (
-        <motion.span
-          key={i}
-          initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
-          animate={{ x: p.tx, y: p.ty, opacity: 0, scale: 0 }}
-          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          onAnimationComplete={i === 0 ? onDone : undefined}
-          style={{
-            position: "absolute",
-            width: p.size,
-            height: p.size,
-            borderRadius: "50%",
-            backgroundColor: p.color,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+let _nextId = 0;
 
 export function ClickBurst() {
-  const [bursts, setBursts] = useState([]);
-  const reduced = useReducedMotion();
-  const counterRef = useRef(0);
-
-  const handleDblClick = useCallback((e) => {
-    if (reduced) return;
-    const id = counterRef.current++;
-    setBursts((prev) => [...prev, { id, x: e.clientX, y: e.clientY }]);
-  }, [reduced]);
+  const reduced = useMotionPreference();
+  const [pings, setPings] = useState([]);
+  const reducedRef = useRef(reduced);
+  reducedRef.current = reduced;
 
   useEffect(() => {
-    window.addEventListener("dblclick", handleDblClick);
-    return () => window.removeEventListener("dblclick", handleDblClick);
-  }, [handleDblClick]);
+    const onClick = (event) => {
+      if (reducedRef.current) return;
+      const actionEl =
+        event.target instanceof Element ? event.target.closest(PING_SELECTOR) : null;
+      if (!actionEl) return;
 
-  const removeBurst = useCallback((id) => {
-    setBursts((prev) => prev.filter((b) => b.id !== id));
+      let x = event.clientX;
+      let y = event.clientY;
+      /* Keyboard activation reports (0,0)-ish coords — center on the element */
+      if (event.detail === 0) {
+        const rect = actionEl.getBoundingClientRect();
+        x = rect.left + rect.width / 2;
+        y = rect.top + rect.height / 2;
+      }
+
+      const id = ++_nextId;
+      setPings((prev) => [...prev.slice(-(MAX_CONCURRENT - 1)), { id, x, y }]);
+    };
+
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
   }, []);
 
-  if (reduced) return null;
+  const remove = useCallback((id) => {
+    setPings((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  if (reduced || pings.length === 0) return null;
 
   return (
-    <AnimatePresence>
-      {bursts.map((b) => (
-        <Burst key={b.id} {...b} onDone={() => removeBurst(b.id)} />
+    <>
+      {pings.map((ping) => (
+        <motion.span
+          key={ping.id}
+          aria-hidden="true"
+          initial={{ scale: 0.15, opacity: 0.9 }}
+          animate={{ scale: 1, opacity: 0 }}
+          transition={{ duration: PING_MS / 1000, ease: "easeOut" }}
+          onAnimationComplete={() => remove(ping.id)}
+          className="pointer-events-none fixed z-[9996] block"
+          style={{
+            left: ping.x,
+            top: ping.y,
+            width: PING_SIZE,
+            height: PING_SIZE,
+            marginLeft: -PING_SIZE / 2,
+            marginTop: -PING_SIZE / 2,
+            border: "1px solid var(--ap-vivid)",
+          }}
+        >
+          {/* center crosshair — two hairlines at low alpha */}
+          <span
+            className="absolute left-0 top-1/2 h-px w-full"
+            style={{ backgroundColor: "var(--ap-vivid)", opacity: 0.4 }}
+          />
+          <span
+            className="absolute left-1/2 top-0 h-full w-px"
+            style={{ backgroundColor: "var(--ap-vivid)", opacity: 0.4 }}
+          />
+        </motion.span>
       ))}
-    </AnimatePresence>
+    </>
   );
 }
+
+export default ClickBurst;

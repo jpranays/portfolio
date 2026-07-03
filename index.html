@@ -1,20 +1,49 @@
 <!doctype html>
-<html lang="en" class="dark">
+<html lang="en" class="dark" data-accent="signal">
 	<head>
 		<meta charset="UTF-8" />
-		<meta
-			name="viewport"
-			content="width=device-width, initial-scale=1.0,maximum-scale=1.0, user-scalable=no"
-		/>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="robots" content="index, follow" />
+
+		<!-- Pre-paint theme + accent (reads pj-theme / pj-accent; dark is the
+		     default, system preference respected when nothing is stored). Runs
+		     before any stylesheet so first paint never flashes. -->
+		<script>
+			(function () {
+				try {
+					var root = document.documentElement;
+					var stored = localStorage.getItem("pj-theme");
+					var dark;
+					if (stored === "light") dark = false;
+					else if (stored === "dark") dark = true;
+					else
+						dark = !(
+							window.matchMedia &&
+							window.matchMedia("(prefers-color-scheme: light)").matches
+						);
+					root.classList.toggle("dark", dark);
+
+					var accent = localStorage.getItem("pj-accent");
+					var valid = ["signal", "ion", "photon", "ember", "pulse", "mono"];
+					root.setAttribute(
+						"data-accent",
+						valid.indexOf(accent) > -1 ? accent : "signal"
+					);
+				} catch (e) {
+					/* defaults in markup already apply */
+				}
+			})();
+		</script>
 
 		<!-- Primary Meta -->
 		<title>
 			Pranay Jadhav — Senior Software Developer & Open Source Contributor
 		</title>
+		<!-- Numbers below are hand-synced to src/config/metrics.js floors
+		     (~25K npm weekly, 10M+ monthly OSS reach) — change together. -->
 		<meta
 			name="description"
-			content="Pranay Jadhav is a Senior Software Developer at Sears India specializing in React, Next.js, and TypeScript. Creator of npm packages with 35K+ weekly users, contributing to open-source libraries that reach 8.4M+ developers monthly."
+			content="Pranay Jadhav is a Senior Software Developer at Sears India specializing in React, Node.js, and payments infrastructure. Creator of npm packages installed ~25K times a week, with code merged into open-source libraries serving 10M+ developers monthly."
 		/>
 		<meta name="author" content="Pranay Jadhav" />
 		<meta
@@ -33,7 +62,7 @@
 		/>
 		<meta
 			property="og:description"
-			content="Senior SWE at Sears India. Creator of npm packages with 35K+ weekly users. OSS contributor touching 8.4M+ developers via Mantine, PrimeReact, RSuite, and more."
+			content="Senior SWE at Sears India. Creator of npm packages installed ~25K times a week. Code merged into Mantine, PrimeReact, RSuite, and more — libraries serving 10M+ developers monthly."
 		/>
 		<meta
 			property="og:image"
@@ -57,7 +86,7 @@
 		/>
 		<meta
 			name="twitter:description"
-			content="Senior SWE at Sears India. npm packages with 35K+ weekly users. OSS contributor touching 8.4M+ developers monthly."
+			content="Senior SWE at Sears India. npm packages installed ~25K times a week. Code merged into OSS libraries serving 10M+ developers monthly."
 		/>
 		<meta
 			name="twitter:image"
@@ -78,16 +107,16 @@
 		<meta name="apple-mobile-web-app-title" content="Pranay Jadhav" />
 		<link rel="apple-touch-icon" href="/jpranays.svg" />
 
-		<!-- Fonts — preconnect then load -->
+		<!-- Fonts — Geist variable 400–700 + Geist Mono 400–500 (hard cap) -->
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link
-			href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+			href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..500&display=swap"
 			rel="stylesheet"
 		/>
 
-		<!-- Theme color for mobile browsers -->
-		<meta name="theme-color" content="#060610" />
+		<!-- Theme color for mobile browsers — matches dark --bg-base -->
+		<meta name="theme-color" content="#0C0C0D" />
 
 		<!-- JSON-LD structured data -->
 		<script type="application/ld+json">
@@ -102,7 +131,7 @@
 					"@type": "Organization",
 					"name": "Sears India"
 				},
-				"description": "Senior Software Developer specializing in React, Next.js, TypeScript, and the MERN stack. Creator of npm packages with 35K+ weekly users and open-source contributor impacting 8.4M+ developers monthly.",
+				"description": "Senior Software Developer specializing in React, Next.js, TypeScript, and payments infrastructure. Creator of npm packages installed ~25K times a week, with code merged into open-source libraries serving 10M+ developers monthly.",
 				"sameAs": [
 					"https://github.com/jpranays",
 					"https://www.linkedin.com/in/jpranays",
@@ -124,7 +153,7 @@
 			}
 		</script>
 	</head>
-	<body class="bg-base text-slate-100 font-sans antialiased">
+	<body class="antialiased">
 		<div id="root"></div>
 
 		<!-- Netlify Forms hidden form for form detection -->

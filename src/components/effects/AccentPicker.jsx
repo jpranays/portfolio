@@ -1,207 +1,166 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Check } from "lucide-react";
+import { useAccent, ACCENTS } from "../../hooks/useAccent";
+import { useOverlay } from "../../hooks/useOverlay";
+import { useMotionPreference } from "../../hooks/useMotionPreference";
+import { Kbd } from "../ui/Kbd";
+import { cn } from "../../utils/cn";
 
-const ACCENTS = [
-  { name: "blue",   c400: "#60a5fa", c500: "#3b82f6", c600: "#2563eb" },
-  { name: "violet", c400: "#a78bfa", c500: "#8b5cf6", c600: "#7c3aed" },
-  { name: "rose",   c400: "#fb7185", c500: "#f43f5e", c600: "#e11d48" },
-  { name: "orange", c400: "#fb923c", c500: "#f97316", c600: "#ea580c" },
-  { name: "green",  c400: "#4ade80", c500: "#22c55e", c600: "#16a34a" },
-];
+/**
+ * AccentPicker — an actual picker at last (DESIGN-V2 §EXTRAS 4, A4, A5).
+ *
+ * Exports AccentPopover({ open, onClose, anchorRef }): a Panel-styled
+ * popover of 6 labeled radio swatches (Signal / Ion / Photon / Ember /
+ * Pulse / Mono) anchored above the status-bar swatch button.
+ *
+ *   - proper radiogroup semantics: role="radio", aria-checked, roving
+ *     tabindex, arrow-key navigation (select follows focus)
+ *   - Kbd 1–6 hotkeys while open
+ *   - picks go through useAccent → html[data-accent] + localStorage
+ *     'pj-accent' + exactly ONE 400ms variable transition per pick
+ *     (instant under prefers-reduced-motion — the hook and the global
+ *     CSS kill-switch both guard it)
+ *   - the mono accent's selected state carries a check glyph + weight +
+ *     wash, never color alone (non-color affordance contract)
+ *   - focus trap / restore / Escape / scroll lock via useOverlay
+ *
+ * No auto-cycle, no style injection, no color literals — the entire old
+ * injectStyle()/setInterval machinery is gone by design.
+ */
 
-export const ACCENT_HEATMAP = {
-  blue: {
-    light: ["#f1f5f9", "#bfdbfe", "#93c5fd", "#3b82f6", "#1d4ed8"],
-    dark:  ["#1e293b", "#1e3a5f", "#1e40af", "#3b82f6", "#60a5fa"],
-  },
-  violet: {
-    light: ["#f1f5f9", "#ddd6fe", "#c4b5fd", "#8b5cf6", "#6d28d9"],
-    dark:  ["#1e293b", "#2e1065", "#4c1d95", "#8b5cf6", "#a78bfa"],
-  },
-  rose: {
-    light: ["#f1f5f9", "#fecdd3", "#fda4af", "#f43f5e", "#be123c"],
-    dark:  ["#1e293b", "#4c0519", "#881337", "#f43f5e", "#fb7185"],
-  },
-  orange: {
-    light: ["#f1f5f9", "#fed7aa", "#fb923c", "#f97316", "#ea580c"],
-    dark:  ["#1e293b", "#431407", "#9a3412", "#f97316", "#fb923c"],
-  },
-  green: {
-    light: ["#f1f5f9", "#bbf7d0", "#86efac", "#22c55e", "#15803d"],
-    dark:  ["#1e293b", "#052e16", "#14532d", "#22c55e", "#4ade80"],
-  },
-};
+const POPOVER_GAP = 8; /* px between anchor top and popover bottom */
 
-const CYCLE_MS      = 6000;
-const TRANSITION_MS = 1600;
-const STORAGE_KEY   = "portfolio-accent";
+export function AccentPopover({ open, onClose, anchorRef }) {
+  const { accent, setAccent } = useAccent();
+  const reduced = useMotionPreference();
+  const initialFocusRef = useRef(null);
+  const { containerRef, overlayProps } = useOverlay({ open, onClose, initialFocusRef });
+  const itemRefs = useRef({});
+  const [pos, setPos] = useState({ right: 16, bottom: 56 });
 
-/* ── colour math ──────────────────────────────────────────────── */
-function parseHex(hex) {
-  return [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-}
-function toHex([r, g, b]) {
-  return "#" + [r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
-}
-function lerpHex(a, b, t) {
-  const [ar, ag, ab] = parseHex(a);
-  const [br, bg, bb] = parseHex(b);
-  return toHex([ar + (br - ar) * t, ag + (bg - ag) * t, ab + (bb - ab) * t]);
-}
-function hex2rgb(hex) {
-  return parseHex(hex).join(", ");
-}
-
-/* Smooth-step easing — gentle S-curve, slower start/end, brisk middle */
-function smoothstep(t) {
-  return t * t * (3 - 2 * t);
-}
-
-/* ── interpolation engine ─────────────────────────────────────── */
-/* Module-level so successive cycles continue from mid-transition */
-let _cur = { c400: "#fb923c", c500: "#f97316", c600: "#ea580c" };
-let _raf = null;
-
-function setVars({ c400, c500, c600 }) {
-  const root = document.documentElement;
-  root.style.setProperty("--ap-400", c400);
-  root.style.setProperty("--ap-500", c500);
-  root.style.setProperty("--ap-600", c600);
-  // RGB triplets so rgba() works on iOS without color-mix()
-  root.style.setProperty("--ap-500-rgb", hex2rgb(c500));
-  root.style.setProperty("--ap-400-rgb", hex2rgb(c400));
-  // Pre-blended light variant: ap-400 × 60% + white × 40% (for gradient-text)
-  root.style.setProperty("--ap-400-light", lerpHex(c400, "#ffffff", 0.4));
-  root.style.setProperty("--color-border-hover", `rgba(${hex2rgb(c500)}, 0.25)`);
-  root.style.setProperty(
-    "--color-shadow-card-hover",
-    `0 4px 24px rgba(0,0,0,0.1), 0 0 0 1px rgba(${hex2rgb(c500)}, 0.15)`
-  );
-}
-
-function animateTo(target, onDone) {
-  if (_raf) cancelAnimationFrame(_raf);
-  const from = { ..._cur };
-  const start = performance.now();
-
-  function tick(now) {
-    const raw    = Math.min((now - start) / TRANSITION_MS, 1);
-    const eased  = smoothstep(raw);
-    const colors = {
-      c400: lerpHex(from.c400, target.c400, eased),
-      c500: lerpHex(from.c500, target.c500, eased),
-      c600: lerpHex(from.c600, target.c600, eased),
+  /* ── Anchor-relative position: opens ABOVE the status-bar swatch ── */
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const compute = () => {
+      const rect = anchorRef?.current?.getBoundingClientRect();
+      if (!rect) return;
+      setPos({
+        right: Math.max(8, window.innerWidth - rect.right),
+        bottom: Math.max(8, window.innerHeight - rect.top + POPOVER_GAP),
+      });
     };
-    _cur = colors;
-    setVars(colors);
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, [open, anchorRef]);
 
-    if (raw < 1) {
-      _raf = requestAnimationFrame(tick);
-    } else {
-      _raf = null;
-      onDone?.();
-    }
-  }
-
-  _raf = requestAnimationFrame(tick);
-}
-
-/* ── one-time style injection ─────────────────────────────────── */
-function injectStyle() {
-  if (document.getElementById("ap-style")) return;
-  const s = document.createElement("style");
-  s.id = "ap-style";
-  s.textContent = `
-    .text-orange-400, .hover\\:text-orange-400:hover, .dark\\:text-orange-400 { color: var(--ap-400) !important; }
-    .text-orange-500 { color: var(--ap-500) !important; }
-    .text-orange-300, .hover\\:text-orange-300:hover { color: var(--ap-400) !important; }
-    .bg-orange-400 { background-color: var(--ap-400) !important; }
-    .bg-orange-500 { background-color: var(--ap-500) !important; }
-    .from-orange-400 { --tw-gradient-from: var(--ap-400) !important; }
-    .to-orange-400   { --tw-gradient-to:   var(--ap-400) !important; }
-    .via-amber-200   { --tw-gradient-via:  var(--ap-400) !important; }
-    .border-orange-500\\/25 { border-color: rgba(var(--ap-500-rgb), 0.25) !important; }
-    .border-orange-500\\/30 { border-color: rgba(var(--ap-500-rgb), 0.30) !important; }
-    .focus\\:border-orange-500\\/50:focus { border-color: rgba(var(--ap-500-rgb), 0.50) !important; }
-    .focus\\:ring-orange-500\\/30:focus   { --tw-ring-color: rgba(var(--ap-500-rgb), 0.30) !important; }
-    .section-label {
-      background-color: rgba(var(--ap-500-rgb), 0.08) !important;
-      border-color:     rgba(var(--ap-500-rgb), 0.15) !important;
-      color: var(--ap-500) !important;
-    }
-    .glow-dot {
-      background-color: var(--ap-500) !important;
-      box-shadow: 0 0 8px rgba(var(--ap-500-rgb), 0.80) !important;
-    }
-    .gradient-text {
-      background-image: linear-gradient(to right, var(--ap-400), var(--ap-400-light)) !important;
-    }
-    .btn-primary {
-      background-color: var(--ap-500) !important;
-      box-shadow: 0 0 20px rgba(var(--ap-500-rgb), 0.30) !important;
-    }
-    .btn-primary:hover {
-      background-color: var(--ap-400) !important;
-      box-shadow: 0 0 28px rgba(var(--ap-500-rgb), 0.45) !important;
-    }
-    ::selection    { background: rgba(var(--ap-500-rgb), 0.25) !important; }
-    :focus-visible { outline-color: rgba(var(--ap-500-rgb), 0.70) !important; }
-    ::-webkit-scrollbar-thumb { background: rgba(var(--ap-500-rgb), 0.40) !important; }
-
-    /* ── CommandPalette: aria-selected item highlight ── */
-    .aria-selected\\:bg-orange-500\\/10[aria-selected="true"] {
-      background-color: rgba(var(--ap-500-rgb), 0.10) !important;
-    }
-    .aria-selected\\:text-orange-500[aria-selected="true"] {
-      color: var(--ap-500) !important;
-    }
-    .dark .dark\\:aria-selected\\:text-orange-400[aria-selected="true"] {
-      color: var(--ap-400) !important;
-    }
-    .group[aria-selected="true"] .group-aria-selected\\:text-orange-400 {
-      color: var(--ap-400) !important;
-    }
-    .caret-orange-400 { caret-color: var(--ap-400) !important; }
-  `;
-  document.head.appendChild(s);
-}
-
-/* ── component ────────────────────────────────────────────────── */
-export function AccentPicker() {
-  const initIdx = Math.max(
-    0,
-    ACCENTS.findIndex((a) => a.name === (localStorage.getItem(STORAGE_KEY) ?? "orange"))
-  );
-
-  const idxRef   = useRef(initIdx);
-  const timerRef = useRef(null);
-
-  const advance = useCallback(() => {
-    const next   = (idxRef.current + 1) % ACCENTS.length;
-    idxRef.current = next;
-    const accent = ACCENTS[next];
-    localStorage.setItem(STORAGE_KEY, accent.name);
-    animateTo(accent, () => {
-      window.dispatchEvent(
-        new CustomEvent("portfolio:accent", {
-          detail: { name: accent.name, heatmap: ACCENT_HEATMAP[accent.name] },
-        })
-      );
-    });
-  }, []);
-
+  /* ── Kbd 1–6 hotkeys while open ── */
   useEffect(() => {
-    injectStyle();
-    /* Apply saved accent instantly on mount (no animation on first load) */
-    const saved = ACCENTS[initIdx];
-    _cur = { c400: saved.c400, c500: saved.c500, c600: saved.c600 };
-    setVars(_cur);
-
-    timerRef.current = setInterval(advance, CYCLE_MS);
-    return () => {
-      clearInterval(timerRef.current);
-      if (_raf) cancelAnimationFrame(_raf);
+    if (!open) return undefined;
+    const onKeyDown = (event) => {
+      const index = Number.parseInt(event.key, 10) - 1;
+      if (Number.isNaN(index) || index < 0 || index >= ACCENTS.length) return;
+      event.preventDefault();
+      setAccent(ACCENTS[index].key);
+      itemRefs.current[ACCENTS[index].key]?.focus();
     };
-  }, [advance, initIdx]);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, setAccent]);
 
-  return null;
+  /* ── Radio pattern: arrows move focus AND selection ── */
+  const onGroupKeyDown = useCallback(
+    (event) => {
+      const current = ACCENTS.findIndex((a) => a.key === accent);
+      let next = null;
+      if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+        next = (current + 1) % ACCENTS.length;
+      } else if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+        next = (current - 1 + ACCENTS.length) % ACCENTS.length;
+      } else if (event.key === "Home") {
+        next = 0;
+      } else if (event.key === "End") {
+        next = ACCENTS.length - 1;
+      }
+      if (next == null) return;
+      event.preventDefault();
+      const target = ACCENTS[next];
+      setAccent(target.key);
+      itemRefs.current[target.key]?.focus();
+    },
+    [accent, setAccent]
+  );
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <div
+          className="fixed inset-0 z-[9990]"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) onClose?.();
+          }}
+        >
+          <motion.div
+            ref={containerRef}
+            {...overlayProps}
+            aria-label="Accent color"
+            initial={reduced ? { opacity: 1 } : { opacity: 0, scale: 0.98, y: 4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.98, y: 4 }}
+            transition={{ duration: reduced ? 0 : 0.16, ease: [0.32, 0.72, 0, 1] }}
+            style={{ position: "fixed", right: pos.right, bottom: pos.bottom, transformOrigin: "bottom right" }}
+            className="w-56 rounded-overlay border border-hairline bg-surface-1 p-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.5)]"
+          >
+            <p className="px-2 pb-1 pt-0.5 font-mono text-xs font-medium text-secondary" aria-hidden="true">
+              accent --set
+            </p>
+            <div role="radiogroup" aria-label="Accent color" onKeyDown={onGroupKeyDown}>
+              {ACCENTS.map((item, index) => {
+                const checked = accent === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={checked}
+                    tabIndex={checked ? 0 : -1}
+                    ref={(el) => {
+                      itemRefs.current[item.key] = el;
+                      if (checked) initialFocusRef.current = el;
+                    }}
+                    onClick={() => setAccent(item.key)}
+                    className={cn(
+                      "flex min-h-10 w-full items-center gap-2.5 rounded-panel px-2 text-left text-[13px] transition-colors duration-fast",
+                      checked
+                        ? "bg-accent-dim font-medium text-primary"
+                        : "text-secondary hover:bg-surface-2 hover:text-primary"
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="h-4 w-4 shrink-0 rounded-full border border-strong"
+                      style={{ backgroundColor: `var(${item.swatchVar})` }}
+                    />
+                    <span className="flex-1">{item.label}</span>
+                    {/* non-color selected affordance — required for MONO */}
+                    <Check
+                      aria-hidden="true"
+                      className={cn("h-3.5 w-3.5 shrink-0 text-accent-text", !checked && "invisible")}
+                    />
+                    <Kbd aria-hidden="true">{index + 1}</Kbd>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
 }
+
+/* A4: AccentPicker.jsx re-exports the accent hook + list */
+export { useAccent, ACCENTS };
+
+export default AccentPopover;
