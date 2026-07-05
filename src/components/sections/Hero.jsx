@@ -637,7 +637,7 @@ function Hero() {
 						variants={item}
 						className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-3 w-full sm:w-auto px-2 sm:px-0"
 					>
-						<MagneticButton
+						{/* <MagneticButton
 							onClick={() =>
 								document
 									.getElementById("projects")
@@ -646,6 +646,16 @@ function Hero() {
 							className="btn-primary justify-center w-full sm:w-auto"
 						>
 							View My Work
+						</MagneticButton> */}
+						<MagneticButton
+							onClick={() =>
+								document
+									.getElementById("contact")
+									?.scrollIntoView({ behavior: "smooth" })
+							}
+							className="btn-primary justify-center w-full sm:w-auto"
+						>
+							Get in Touch
 						</MagneticButton>
 						<MagneticButton
 							href="/Pranay_Jadhav_Resume.pdf"
